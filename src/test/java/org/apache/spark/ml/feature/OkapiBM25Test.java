@@ -18,28 +18,28 @@
 package org.apache.spark.ml.feature;
 
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import static org.junit.Assert.assertEquals;
 
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.ml.Pipeline;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PipelineStage;
-import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class OkapiBM25Test {
   private transient JavaSparkContext jsc;
@@ -74,22 +74,22 @@ public class OkapiBM25Test {
     StructType schema = DataTypes.createStructType(new StructField[]{
         DataTypes.createStructField("text", DataTypes.StringType, false)
     });
-    DataFrame df = jsql.createDataFrame(rdd, schema);
+    Dataset<Row> df = jsql.createDataFrame(rdd, schema);
 
     Tokenizer tokenizer = new Tokenizer().setInputCol("text").setOutputCol("tokens");
-    DataFrame tokenizedDF = tokenizer.transform(df);
+    Dataset<Row> tokenizedDF = tokenizer.transform(df);
     CountVectorizer vectorizer = new CountVectorizer()
         .setInputCol("tokens").setOutputCol("token_count");
     CountVectorizerModel vectorizerModel = vectorizer.fit(tokenizedDF);
-    DataFrame vectorizedDF = vectorizerModel.transform(tokenizedDF);
+    Dataset<Row> vectorizedDF = vectorizerModel.transform(tokenizedDF);
 
     OkapiBM25 bm25 = new OkapiBM25()
         .setFeaturesCol("token_count")
         .setOutputCol("bm25");
 
     OkapiBM25Model model = bm25.fit(vectorizedDF);
-    DataFrame transformed = model.transform(vectorizedDF);
-    long count = transformed.select("bm25").count();
+    Dataset<Row> transformed = model.transform(vectorizedDF);
+    long count = transformed.count();
     assertEquals(8, count);
   }
 
@@ -99,7 +99,7 @@ public class OkapiBM25Test {
     StructType schema = DataTypes.createStructType(new StructField[]{
         DataTypes.createStructField("text", DataTypes.StringType, false)
     });
-    DataFrame df = jsql.createDataFrame(rdd, schema);
+    Dataset df = jsql.createDataFrame(rdd, schema);
 
     Tokenizer tokenizer = new Tokenizer().setInputCol("text").setOutputCol("tokens");
     CountVectorizer vectorizer = new CountVectorizer()
@@ -110,8 +110,8 @@ public class OkapiBM25Test {
         .setStages(new PipelineStage[] {tokenizer, vectorizer, bm25});
 
     PipelineModel model = pipeline.fit(df);
-    DataFrame transformed = model.transform(df);
-    long count = transformed.select("bm25").count();
+    Dataset<Row> transformed = model.transform(df);
+    long count = transformed.count();
     assertEquals(8, count);
   }
 
@@ -121,14 +121,14 @@ public class OkapiBM25Test {
     StructType schema = DataTypes.createStructType(new StructField[]{
         DataTypes.createStructField("text", DataTypes.StringType, false)
     });
-    DataFrame df = jsql.createDataFrame(rdd, schema);
+    Dataset<Row> df = jsql.createDataFrame(rdd, schema);
 
     Tokenizer tokenizer = new Tokenizer().setInputCol("text").setOutputCol("tokens");
-    DataFrame tokenizedDF = tokenizer.transform(df);
+    Dataset<Row> tokenizedDF = tokenizer.transform(df);
     CountVectorizer vectorizer = new CountVectorizer()
         .setInputCol("tokens").setOutputCol("token_count");
     CountVectorizerModel vectorizerModel = vectorizer.fit(tokenizedDF);
-    DataFrame vectorizedDF = vectorizerModel.transform(tokenizedDF);
+    Dataset<Row> vectorizedDF = vectorizerModel.transform(tokenizedDF);
 
     OkapiBM25 bm25 = new OkapiBM25().setFeaturesCol("token_count").setOutputCol("bm25");
     OkapiBM25Model model = bm25.fit(vectorizedDF);
@@ -137,8 +137,8 @@ public class OkapiBM25Test {
     model.write().overwrite().save(path);
     OkapiBM25Model loaded = OkapiBM25Model.load(path);
 
-    DataFrame transformed = loaded.transform(vectorizedDF);
-    long count = transformed.select("bm25").count();
+    Dataset<Row> transformed = loaded.transform(vectorizedDF);
+    long count = transformed.count();
     assertEquals(8, count);
   }
 }

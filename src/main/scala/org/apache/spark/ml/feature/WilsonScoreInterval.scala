@@ -24,7 +24,8 @@ import org.apache.spark.ml.param.{Param, ParamMap, Params}
 import org.apache.spark.ml.util.{DefaultParamsReadable, DefaultParamsWritable, Identifiable}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{UserDefinedFunction, DataFrame, SQLContext}
+import org.apache.spark.sql.{Dataset, DataFrame, SQLContext}
+import org.apache.spark.sql.expressions.UserDefinedFunction
 
 
 /**
@@ -96,7 +97,7 @@ class WilsonScoreInterval(override val uid: String)
     StructType(outputFields)
   }
 
-  override def transform(dataset: DataFrame): DataFrame = {
+  override def transform(dataset: Dataset[_]): DataFrame = {
     transformSchema(dataset.schema, logging = true)
     val scoreUdf = udf(WilsonScoreInterval.createTransformFunc)
     dataset.withColumn($(outputCol), scoreUdf(col(getPositiveCol), col(getNegativeCol)))

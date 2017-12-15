@@ -20,6 +20,7 @@ package org.apache.spark
 // scalastyle:off
 import org.scalatest.{Outcome, FunSuite}
 import org.apache.log4j.{Level, Logger}
+import org.apache.spark.internal.Logging
 
 /**
  * Base abstract class for all unit tests in Spark for handling common functionality.

@@ -18,27 +18,32 @@
 package org.apache.spark.ml.feature;
 
 
+import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.col;
+import static org.junit.Assert.assertEquals;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import static org.junit.Assert.assertEquals;
-import static org.apache.spark.sql.functions.callUDF;
-import static org.apache.spark.sql.functions.col;
 
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.ml.Pipeline;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PipelineStage;
-import org.apache.spark.sql.*;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.functions;
+import org.apache.spark.sql.Column;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 public class WilsonScoreIntervalTest {
   private transient JavaSparkContext jsc;
@@ -63,27 +68,27 @@ public class WilsonScoreIntervalTest {
     jsc = null;
   }
 
-  private DataFrame createTestDataFrame() {
+  private Dataset<Row> createTestDataFrame() {
     JavaRDD<Row> rdd = jsc.parallelize(data);
     StructType schema = DataTypes.createStructType(new StructField[]{
         DataTypes.createStructField("docId", DataTypes.LongType, false),
         DataTypes.createStructField("positives", DataTypes.LongType, false),
         DataTypes.createStructField("negatives", DataTypes.LongType, false)
     });
-    DataFrame df = jsql.createDataFrame(rdd, schema);
+    Dataset<Row> df = jsql.createDataFrame(rdd, schema);
     return df;
   }
 
   @Test
   public void testRun() {
-    DataFrame df = createTestDataFrame();
+	  Dataset<Row> df = createTestDataFrame();
 
     WilsonScoreInterval wilsonScore = new WilsonScoreInterval()
         .setPositiveCol("positives")
         .setNegativeCol("negatives")
         .setOutputCol("score");
-    DataFrame transformed = wilsonScore.transform(df);
-    List<Row> scoreList = transformed.select("score").collectAsList();
+    Dataset<Row> transformed = wilsonScore.transform(df);
+    List<Row> scoreList = transformed.selectExpr("score").collectAsList();
     assertEquals(0.22328763310073402, scoreList.get(0).getDouble(0), 1e-5);
     assertEquals(0.553022430377575, scoreList.get(1).getDouble(0), 1e-5);
     assertEquals(0.6316800063346981, scoreList.get(2).getDouble(0), 1e-5);
@@ -92,7 +97,7 @@ public class WilsonScoreIntervalTest {
 
   @Test
   public void testPipeline() {
-    DataFrame df = createTestDataFrame();
+	  Dataset<Row> df = createTestDataFrame();
 
     WilsonScoreInterval wilsonScore = new WilsonScoreInterval()
         .setPositiveCol("positives")
@@ -102,8 +107,8 @@ public class WilsonScoreIntervalTest {
         .setStages(new PipelineStage[] {wilsonScore});
 
     PipelineModel model = pipeline.fit(df);
-    DataFrame transformed = model.transform(df);
-    List<Row> scoreList = transformed.select("score").collectAsList();
+    Dataset<Row> transformed = model.transform(df);
+    List<Row> scoreList = transformed.selectExpr("score").collectAsList();
     assertEquals(0.22328763310073402, scoreList.get(0).getDouble(0), 1e-5);
     assertEquals(0.553022430377575, scoreList.get(1).getDouble(0), 1e-5);
     assertEquals(0.6316800063346981, scoreList.get(2).getDouble(0), 1e-5);
@@ -112,7 +117,7 @@ public class WilsonScoreIntervalTest {
 
   @Test
   public void testSaveAndLoad() throws IOException {
-    DataFrame df = createTestDataFrame();
+	Dataset<Row> df = createTestDataFrame();
 
     WilsonScoreInterval wilsonScore = new WilsonScoreInterval()
         .setPositiveCol("positives")
@@ -122,8 +127,8 @@ public class WilsonScoreIntervalTest {
     wilsonScore.write().overwrite().save(path);
     WilsonScoreInterval loaded = WilsonScoreInterval.load(path);
 
-    DataFrame transformed = loaded.transform(df);
-    List<Row> scoreList = transformed.select("score").collectAsList();
+    Dataset<Row> transformed = loaded.transform(df);
+    List<Row> scoreList = transformed.selectExpr("score").collectAsList();
     assertEquals(0.22328763310073402, scoreList.get(0).getDouble(0), 1e-5);
     assertEquals(0.553022430377575, scoreList.get(1).getDouble(0), 1e-5);
     assertEquals(0.6316800063346981, scoreList.get(2).getDouble(0), 1e-5);
@@ -133,12 +138,12 @@ public class WilsonScoreIntervalTest {
 
   @Test
   public void testDefiningUDF() {
-    DataFrame df = createTestDataFrame();
+	Dataset<Row> df = createTestDataFrame();
 
     WilsonScoreInterval.defineUDF(jsql);
     // DataFrame
     List<Row> scores =
-        df.select(callUDF("wilson_score_interval", col("positives"), col("negatives"))).collectAsList();
+    		df.withColumn("score", callUDF("wilson_score_interval", col("positives"), col("negatives"))).selectExpr("score").collectAsList();
     assertEquals(4, scores.size());
     // Spark SQL
     df.registerTempTable("test_data");

@@ -25,7 +25,8 @@ import org.apache.spark.ml.param.shared.{HasFeaturesCol, HasOutputCol}
 import org.apache.spark.ml.param.{DoubleParam, ParamMap, Params}
 import org.apache.spark.ml.util._
 import org.apache.spark.ml.{Estimator, Model}
-import org.apache.spark.mllib.linalg.{Vector, VectorUDT, Vectors}
+import org.apache.spark.ml.linalg.{Vector, VectorUDT, Vectors}
+import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
@@ -110,7 +111,7 @@ class OkapiBM25(override val uid: String)
     validateAndTransformSchema(schema)
   }
 
-  override def fit(dataset: DataFrame): OkapiBM25Model = {
+  override def fit(dataset: Dataset[_]): OkapiBM25Model = {
     // Computes IDF
     val idf = new IDF().setInputCol($(featuresCol)).setOutputCol("idf_output")
     val idfModel = idf.fit(dataset)
@@ -164,7 +165,7 @@ class OkapiBM25Model private[ml](override val uid: String,
 
   override def write: MLWriter = new OkapiBM25Model.OkapiBM25Writer(this)
 
-  override def transform(dataset: DataFrame): DataFrame = {
+  override def transform(dataset: Dataset[_]): DataFrame = {
     // Creates an UDF to calculate Okapi BM25
     val bm25 = udf((termFreq: Vector) =>
       OkapiBM25Model.calculateBM25(termFreq, this.idf, this.meanDocumentLength, getK1, getB))
@@ -248,8 +249,10 @@ object OkapiBM25Model extends MLReadable[OkapiBM25Model] {
     val documentLength = Vectors.norm(termFreq, 1.0)
     val ndl = documentLength / meanDocumentLength
     // CW(i,j) = [ TF(i,j) * IDF(i) * (K1 + 1) ] / [ K1 * (1 - b + (b * NDL(j)) + TF(i,j) ]
-    val numerator: BVector[Double] = termFreq.toBreeze :* idf.toBreeze :* (k1 + 1)
-    val denominator: BVector[Double] = termFreq.toBreeze :+ (k1 * (1 - b + b * ndl))
+//    val numerator: BVector[Double] = termFreq.asBreeze :* idf.toBreeze.asBreeze :* (k1 + 1)
+    val numerator: BVector[Double] = termFreq.asBreeze :* idf.asBreeze :* (k1 + 1)
+    val denominator: BVector[Double] = termFreq.asBreeze :+ (k1 * (1 - b + b * ndl))
+//    Vectors.fromBreeze(breezeVector)
     Vectors.fromBreeze(numerator :/ denominator).toSparse
   }
 }
