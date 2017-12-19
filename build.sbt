@@ -30,6 +30,7 @@ val testSparkVersion = settingKey[String]("The version of Spark to test against.
 testSparkVersion := sys.props.getOrElse("spark.testVersion", sparkVersion.value)
 
 // Can't parallelly execute in test
+parallelExecution := true
 parallelExecution in Test := false
 
 fork in Test := true
@@ -49,3 +50,9 @@ resolvers ++= Seq(
   "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 )
 
+concurrentRestrictions in Global := Seq(
+  Tags.limit(Tags.CPU, 4),
+  Tags.limit(Tags.Network, 20),
+  Tags.limit(Tags.Test, 1),
+  Tags.limitAll( 15 )
+)
