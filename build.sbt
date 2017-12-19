@@ -7,10 +7,9 @@ version := "0.0.5"
 
 licenses := Seq("Apache-2.0" -> url("http://opensource.org/licenses/Apache-2.0"))
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.11"
 
-//crossScalaVersions := Seq("2.10.5", "2.11.8")
-crossScalaVersions := Seq("2.11.8")
+crossScalaVersions := Seq("2.10.7", "2.11.11", "2.12.4")
 
 sparkVersion := "2.2.0"
 
@@ -49,5 +48,4 @@ resolvers ++= Seq(
   "Atilika Open Source repository" at "http://www.atilika.org/nexus/content/repositories/atilika",
   "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
 )
-
 
